@@ -36,16 +36,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val localName = ObservableField("")
     val actionList = listOf("Clipboard", "HTTP", "HTTPS")
     var selectedPosition = 0
+    val resultDescription = ObservableField<String>()
 
     fun onResolve() {
         val mutableList = mutableListOf<MainDataClass>()
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                // clear current results display on new search
+                resultDescription.set("")
+                liveDataList.postValue(mutableList)
+
+                var currentRequestHostname = ""
                 val lookupRecords = arrayListOf<Record>()
+
                 wifiManager?.createMulticastLock("mDnsLock")?.also {
                     it.setReferenceCounted(true)
                     it.acquire()
                     localName.get()?.also { name ->
+                        currentRequestHostname = name
+
                         val done = AtomicBoolean(false)
                         val haveV4 = AtomicBoolean(false)
                         val haveV6 = AtomicBoolean(false)
@@ -110,7 +119,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
-                liveDataList.postValue(mutableList.distinct())
+                val distinctResults = mutableList.distinct()
+                resultDescription.set("Results for $currentRequestHostname")
+                liveDataList.postValue(distinctResults)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
